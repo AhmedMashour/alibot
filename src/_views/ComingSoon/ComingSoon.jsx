@@ -1,12 +1,13 @@
 import React from "react";
 import { Component } from "react";
 import { connect } from "react-redux";
+// import moment from 'moment/min/moment-with-locales';
+import moment from "moment";
 // @material-ui/core
 import withStyles from "@material-ui/core/styles/withStyles";
 import Button from "@material-ui/core/Button";
 import Add from "@material-ui/icons/Add";
 import "react-under-construction/build/css/index.css";
-import { defaultFont } from "../../../src/_assets/jss/material-dashboard-react";
 
 // core components
 import GridItem from "../../_components/Grid/GridItem.jsx";
@@ -15,8 +16,20 @@ import Table from "../../_components/Table/Table.jsx";
 import Card from "../../_components/Card/Card.jsx";
 import CardHeader from "../../_components/Card/CardHeader.jsx";
 import CardBody from "../../_components/Card/CardBody.jsx";
+
+// Media Card Components
+import MediaCard from "../../_components/MediaCard/MediaCard.jsx";
+import MediaCardHeader from "../../_components/MediaCard/MediaCardHeader.jsx";
+import MediaCardMedia from "../../_components/MediaCard/MediaCardMedia.jsx";
+import MediaCardContent from "../../_components/MediaCard/MediaCardContent.jsx";
+import MediaCardActions from "../../_components/MediaCard/MediaCardActions.jsx";
+import Typography from "@material-ui/core/Typography";
+import IconButton from "@material-ui/core/IconButton";
+import MoreVertIcon from "@material-ui/icons/MoreVert";
+
 import CircularIndeterminate from "../../_components/CircularIndeterminate/Loading.jsx";
-import IOSSwitch from "../../_components/IOSSwitch/IOSSWitch";
+import Collapse from "@material-ui/core/Collapse";
+import Avatar from "@material-ui/core/Avatar";
 
 import statics from "../../_assets/statics/tables.json";
 
@@ -83,6 +96,7 @@ function Transition(props) {
 class ComingSoon extends Component {
   componentDidMount() {
     this.getDeals();
+    this.getDealBookings();
   }
 
   state = {
@@ -95,6 +109,7 @@ class ComingSoon extends Component {
         status: "active",
       },
     ],
+    expanded: false,
     dialogOpen: false,
   };
 
@@ -113,7 +128,7 @@ class ComingSoon extends Component {
     console.log("event", e.target.innerText);
     const value = e.target.innerText;
     if (value === "YES" && this.dialogRow) {
-      this.props.dispatch(dealsActions.deleteDeal({ row: this.dialogRow }));
+      this.props.dispatch(dealsActions.deleteDealBooking({ row: this.dialogRow }));
       this.props.dispatch(dealsActions.getDeals({ skip: 0, limit: 200 }));
     }
     this.setState({ dialogOpen: false });
@@ -123,15 +138,51 @@ class ComingSoon extends Component {
     this.props.dispatch(dealsActions.getDeals({ skip: 0, limit: 20 }));
   };
 
+  getDealBookings = () => {
+    this.props.dispatch(dealsActions.getDealBookings({ skip: 0, limit: 20 }));
+  };
+
   createDeal = (event) => {
     const { name, value } = event.target;
     console.log("value given", value);
   };
   render() {
     const { classes, deals } = this.props;
-    let data =
-      !deals.loading && deals.allDeals
-        ? deals.allDeals.map((deal) => {
+    // let data =
+    //   !deals.loading && deals.allDeals
+    //     ? deals.allDeals.map((deal) => {
+    //         const daysOfWeek = [];
+    //         if (deal.availability.type == "anytime") {
+    //           deal.duration = "-";
+    //           deal.status = "active";
+    //         } else {
+    //           const from = new Date(deal.availability.period.from);
+    //           const to = new Date(deal.availability.period.to);
+    //           const diffTime = Math.abs(to - from);
+    //           const duration = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    //           deal.duration = duration + " day(s)";
+    //           if (to.getTime() >= new Date().getTime()) deal.status = "active";
+    //           else deal.status = "stopped";
+    //         }
+    //         deal.availability.daysOfWeek.map((day, key) => {
+    //           daysOfWeek.push(statics.daysOfTheWeek[day].label);
+    //         });
+    //         return {
+    //           _id: deal._id,
+    //           name: deal.name === "" ? "-" : deal.name,
+    //           type: deal.type,
+    //           duration: deal.duration,
+    //           daysOfWeek,
+    //           status: deal.status,
+    //           payload: { source: "deals", _id: deal._id },
+    //         };
+    //       })
+    //     : [];
+    let bookings =
+      !deals.bookingDealsLoading && deals.bookingDeals
+        ? deals.bookingDeals.map((booking, index) => {
+            const deal = booking.dealId;
+            const user = booking.userId;
             const daysOfWeek = [];
             if (deal.availability.type == "anytime") {
               deal.duration = "-";
@@ -149,36 +200,83 @@ class ComingSoon extends Component {
               daysOfWeek.push(statics.daysOfTheWeek[day].label);
             });
             return {
-              _id: deal._id,
-              name: deal.name,
-              type: deal.type,
+              _id: booking._id,
+              id: index + 1,
+              username: `${user.firstName} ${user.lastName}`,
+              phone: user.phone,
+              email: user.email,
+              date: moment(booking.createdAt).format("dddd, MMM D HH:mm"),
+              name: deal.name === "" ? "-" : deal.name,
               duration: deal.duration,
               daysOfWeek,
-              status: deal.status,
               payload: { source: "deals", _id: deal._id },
             };
           })
         : [];
-    console.log("data ===================>", data);
     return (
       <GridContainer>
         <GridItem xs={12} sm={12} md={12}>
+          {deals.allDeals && deals.allDeals.length !== 0 ? (
+            <GridContainer>
+              {deals.allDeals.map((deal) => {
+                let { expanded } = deal;
+                return (
+                  <GridItem xs={3} sm={3} md={3}>
+                    <MediaCard className={classes.root}>
+                      <MediaCardHeader
+                        avatar={<Avatar aria-label="recipe">R</Avatar>}
+                        action={
+                          <IconButton aria-label="settings">
+                            <MoreVertIcon />
+                          </IconButton>
+                        }
+                        title={deal.name}
+                        subheader={deal.price}
+                      />
+                      <MediaCardMedia
+                        className={classes.media}
+                        image={deal.image || "/images/dashboard/special.jpg"}
+                        title="Paella dish"
+                      />
+                      <MediaCardContent>
+                        <Typography paragraph>{deal.description}</Typography>
+                      </MediaCardContent>
+                      <MediaCardActions disableSpacing>
+                        <Typography paragraph>dt {deal.price || 5}</Typography>
+                      </MediaCardActions>
+                      <Collapse in={expanded} timeout="auto" unmountOnExit>
+                        <MediaCardContent>
+                          HEREEEEE THE PRICEEEEE
+                          <Typography paragraph>Here the price</Typography>
+                        </MediaCardContent>
+                      </Collapse>
+                    </MediaCard>
+                  </GridItem>
+                );
+              })}
+            </GridContainer>
+          ) : (
+            <div />
+          )}
+        </GridItem>
+        <GridItem xs={12} sm={12} md={12}>
           <Card>
             <CardHeader color="primary">
-              <h4 className={classes.cardTitleWhite}>Deals Management</h4>
+              <h4 className={classes.cardTitleWhite}>Deals Joining List</h4>
               <p className={classes.cardCategoryWhite}>
                 {" "}
-                Here you can check your check your created deals and create a
-                deal{" "}
+                Here you can check your deals joining and view who has joined
+                your created deals{" "}
               </p>
             </CardHeader>
             <CardBody>
               <a className="nav-link" href="/create-deal">
                 <Button onClick={() => this.setState({ modalOpen: true })}>
-                  <Add />Create a Deal
+                  <Add />
+                  Create a Deal
                 </Button>
               </a>
-              {deals.loading ? (
+              {deals.bookingDealsLoading ? (
                 <CircularIndeterminate />
               ) : deals.allDeals && deals.allDeals.length === 0 ? (
                 <div className={classes.noData}>
@@ -188,14 +286,17 @@ class ComingSoon extends Component {
                 <Table
                   tableHeaderColor="primary"
                   tableHead={[
-                    "Deal name",
-                    "Deal type",
+                    "#",
+                    "User Name",
+                    "Phone",
+                    "Email",
+                    "Date Joined",
+                    "Deal Name",
                     "Duration",
                     "Days Of The Week",
-                    "Status",
-                    "Action",
+                    "Actions",
                   ]}
-                  tableData={data}
+                  tableData={bookings}
                   scrollable={true}
                   hasActions={true}
                   extraActions={this.actions}
@@ -218,7 +319,7 @@ class ComingSoon extends Component {
           </DialogTitle>
           <DialogContent>
             <DialogContentText id="alert-dialog-slide-description">
-              Would you like to remove this item from the list ?
+              Would you like to remove that user from that deal?
             </DialogContentText>
           </DialogContent>
           <DialogActions>
